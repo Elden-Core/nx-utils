@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "version": 2,
+  "title": "Setup Kube",
+  "description": "Scaffold src/kube/ Kubernetes manifests (Deployment, Service, optional Ingress) for an NX project",
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Name of the NX project to configure",
+      "$default": {
+        "$source": "projectName"
+      },
+      "x-prompt": "Which project do you want to configure?"
+    },
+    "namespace": {
+      "type": "string",
+      "description": "Kubernetes namespace",
+      "default": "default",
+      "x-prompt": "Which Kubernetes namespace should this deploy to?"
+    },
+    "port": {
+      "type": "number",
+      "description": "Port the container exposes",
+      "default": 3000,
+      "x-prompt": "Which port does the container expose?"
+    },
+    "replicas": {
+      "type": "number",
+      "description": "Number of initial pod replicas",
+      "default": 1
+    },
+    "registry": {
+      "type": "string",
+      "description": "Docker registry host (e.g. registry.elden-core.fr)",
+      "x-prompt": "Docker registry host for the image reference?"
+    },
+    "imageName": {
+      "type": "string",
+      "description": "Image name. Defaults to the NX project name."
+    },
+    "withIngress": {
+      "type": "boolean",
+      "description": "Generate an Ingress manifest",
+      "default": true
+    },
+    "ingressHost": {
+      "type": "string",
+      "description": "Ingress hostname (e.g. myapp.elden-core.fr). Required when withIngress is true."
+    },
+    "withTls": {
+      "type": "boolean",
+      "description": "Add TLS/cert-manager annotations to the Ingress",
+      "default": false
+    }
+  },
+  "required": ["project", "namespace", "registry"]
+}

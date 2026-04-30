@@ -1,0 +1,18 @@
+FROM node:24-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Requires `output: 'standalone'` in next.config.js and `nx build <%= projectName %>`
+COPY apps/<%= projectName %>/.next/standalone ./
+COPY apps/<%= projectName %>/.next/static ./.next/static
+COPY apps/<%= projectName %>/public ./public
+
+EXPOSE <%= port %>
+
+ENV PORT=<%= port %>
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "server.js"]

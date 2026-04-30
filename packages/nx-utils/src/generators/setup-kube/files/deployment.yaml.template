@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <%= projectName %>
+  namespace: <%= namespace %>
+  labels:
+    app: <%= projectName %>
+spec:
+  replicas: <%= replicas %>
+  selector:
+    matchLabels:
+      app: <%= projectName %>
+  template:
+    metadata:
+      labels:
+        app: <%= projectName %>
+    spec:
+      containers:
+        - name: <%= projectName %>
+          image: <%= registry %>/<%= imageName %>:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: <%= port %>
+              protocol: TCP
+          env: []
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: <%= port %>
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: <%= port %>
+            initialDelaySeconds: 15
+            periodSeconds: 20

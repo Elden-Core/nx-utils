@@ -1,0 +1,65 @@
+{
+  "name": "nx-utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/nx-utils/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "outputPath": "dist/packages/nx-utils",
+        "main": "packages/nx-utils/src/index.ts",
+        "tsConfig": "packages/nx-utils/tsconfig.lib.json",
+        "assets": [
+          {
+            "glob": "**/*.json",
+            "input": "packages/nx-utils/src",
+            "output": "src"
+          },
+          {
+            "glob": "**/*.template",
+            "input": "packages/nx-utils/src",
+            "output": "src"
+          },
+          {
+            "glob": "executors.json",
+            "input": "packages/nx-utils",
+            "output": "."
+          },
+          {
+            "glob": "generators.json",
+            "input": "packages/nx-utils",
+            "output": "."
+          },
+          {
+            "glob": "package.json",
+            "input": "packages/nx-utils",
+            "output": "."
+          }
+        ]
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit --project packages/nx-utils/tsconfig.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/packages/nx-utils"],
+      "options": {
+        "command": "jest --config packages/nx-utils/jest.config.js --coverage",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "npm publish dist/packages/nx-utils"
+      }
+    }
+  }
+}

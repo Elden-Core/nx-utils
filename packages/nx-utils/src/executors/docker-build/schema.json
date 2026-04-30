@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "version": 2,
+  "title": "Docker Build",
+  "description": "Build a Docker image using the project's src/docker/Dockerfile",
+  "type": "object",
+  "properties": {
+    "registry": {
+      "type": "string",
+      "description": "Docker registry host (e.g. registry.elden-core.fr)"
+    },
+    "imageName": {
+      "type": "string",
+      "description": "Image name. Defaults to the NX project name."
+    },
+    "tag": {
+      "type": "string",
+      "description": "Image tag.",
+      "default": "latest"
+    },
+    "dockerfile": {
+      "type": "string",
+      "description": "Path to the Dockerfile relative to the workspace root. Defaults to {projectRoot}/src/docker/Dockerfile."
+    },
+    "context": {
+      "type": "string",
+      "description": "Docker build context path relative to the workspace root.",
+      "default": "."
+    },
+    "buildArgs": {
+      "type": "object",
+      "description": "Key/value build arguments passed as --build-arg flags.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "platform": {
+      "type": "string",
+      "description": "Target platform (e.g. linux/amd64). Omit to use the host platform."
+    },
+    "push": {
+      "type": "boolean",
+      "description": "Push the image to the registry after building.",
+      "default": false
+    },
+    "labels": {
+      "type": "object",
+      "description": "Key/value image labels passed as --label flags.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": []
+}

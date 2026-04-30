@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "../../dist/packages/nx-utils",
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "jest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

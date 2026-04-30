@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "version": 2,
+  "title": "Setup Docker",
+  "description": "Scaffold src/docker/Dockerfile and add docker-build target to an NX project",
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Name of the NX project to configure",
+      "$default": {
+        "$source": "projectName"
+      },
+      "x-prompt": "Which project do you want to configure?"
+    },
+    "appType": {
+      "type": "string",
+      "description": "Application type — determines which Dockerfile template to use",
+      "enum": ["node", "nextjs", "nginx"],
+      "default": "node",
+      "x-prompt": {
+        "message": "What type of application is this?",
+        "type": "list",
+        "items": [
+          { "value": "node", "label": "Node.js (NestJS / Express — bundled output)" },
+          { "value": "nextjs", "label": "Next.js (standalone output mode)" },
+          { "value": "nginx", "label": "Nginx (static frontend from dist/)" }
+        ]
+      }
+    },
+    "port": {
+      "type": "number",
+      "description": "Port the application listens on",
+      "default": 3000,
+      "x-prompt": "Which port does the application listen on?"
+    },
+    "registry": {
+      "type": "string",
+      "description": "Docker registry host (e.g. registry.elden-core.fr). Used as the default in the generated target."
+    }
+  },
+  "required": ["project", "appType"]
+}

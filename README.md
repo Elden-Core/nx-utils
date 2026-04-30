@@ -1,105 +1,201 @@
-# New Nx Repository
+# nx-utils
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+NX plugin workspace for [EldenCore](https://elden-core.fr). Contains reusable NX executors and generators that power the deployment toolchain of the `vesta` monorepo.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## Packages
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-## Try the full Nx platform
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/setup/connect-workspace/guide). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-## Generate a library
+| Package | Version | Description |
+|---|---|---|
+| [`@elden-core/nx-utils`](packages/nx-utils) | 0.1.0 | Docker & Kubernetes executors/generators |
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
+---
 
-## Run tasks
+## `@elden-core/nx-utils`
 
-To build the library use:
+### Installation (in a consuming monorepo)
 
 ```sh
-npx nx build pkg1
+npm install --save-dev @elden-core/nx-utils --registry https://npm.elden-core.fr
 ```
 
-To run any task with Nx use:
+---
+
+### Executor — `docker-build`
+
+Builds a Docker image for any NX project using its `src/docker/Dockerfile`. The workspace root is always the build context, so Dockerfiles can reference `dist/apps/{project}/` directly.
+
+**project.json example**
+
+```json
+{
+  "targets": {
+    "docker-build": {
+      "executor": "@elden-core/nx-utils:docker-build",
+      "dependsOn": ["build"],
+      "options": {
+        "registry": "registry.elden-core.fr",
+        "imageName": "my-api",
+        "tag": "latest"
+      }
+    }
+  }
+}
+```
+
+**Options**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `registry` | `string` | — | Docker registry host |
+| `imageName` | `string` | project name | Image name |
+| `tag` | `string` | `latest` | Image tag |
+| `dockerfile` | `string` | `{projectRoot}/src/docker/Dockerfile` | Path to Dockerfile (workspace-relative) |
+| `context` | `string` | `.` | Build context (workspace-relative) |
+| `buildArgs` | `object` | — | Key/value `--build-arg` entries |
+| `labels` | `object` | — | Key/value `--label` entries |
+| `platform` | `string` | — | Target platform, e.g. `linux/amd64` |
+| `push` | `boolean` | `false` | Push image after a successful build |
+
+**Usage**
 
 ```sh
-npx nx <target> <project-name>
+# Build only
+nx docker-build my-api
+
+# Build and push
+nx docker-build my-api --push
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+---
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Generator — `setup-docker`
 
-## Versioning and releasing
-
-To version and release the library use
-
-```
-npx nx release
-```
-
-Pass `--dry-run` to see what would happen without actually releasing the library.
-
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+Scaffolds `src/docker/Dockerfile` inside a project and wires the `docker-build` executor target automatically.
 
 ```sh
-npx nx sync
+nx g @elden-core/nx-utils:setup-docker \
+  --project=my-api \
+  --appType=node \
+  --port=3000 \
+  --registry=registry.elden-core.fr
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+**Options**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `project` | `string` | — | NX project name (**required**) |
+| `appType` | `node \| nextjs \| nginx` | `node` | Selects the Dockerfile template |
+| `port` | `number` | `3000` (`80` for nginx) | Exposed port |
+| `registry` | `string` | — | Pre-fills the `docker-build` target's registry option |
+
+**Generated files**
+
+```
+{projectRoot}/
+  src/docker/
+    Dockerfile          ← template for chosen appType
+    nginx.conf          ← only for nginx appType
+.dockerignore           ← created at workspace root if absent
+```
+
+**App type templates**
+
+| `appType` | Base image | Expects NX output at |
+|---|---|---|
+| `node` | `node:24-alpine` | `dist/apps/{project}/` |
+| `nextjs` | `node:24-alpine` | `apps/{project}/.next/standalone/` |
+| `nginx` | `nginx:1.27-alpine` | `dist/apps/{project}/` |
+
+> **Note:** Build the project before running docker-build:
+> `nx build my-api && nx docker-build my-api`
+
+---
+
+### Generator — `setup-kube`
+
+Scaffolds `src/kube/` Kubernetes manifests (Deployment, Service, optional Ingress) inside a project. The generated YAML files are plain manifests — commit them and let your GitOps pipeline (ArgoCD) apply them.
 
 ```sh
-npx nx sync:check
+nx g @elden-core/nx-utils:setup-kube \
+  --project=my-api \
+  --namespace=production \
+  --registry=registry.elden-core.fr \
+  --ingressHost=my-api.elden-core.fr \
+  --withTls
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+**Options**
 
-## Nx Cloud
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `project` | `string` | — | NX project name (**required**) |
+| `namespace` | `string` | — | Kubernetes namespace (**required**) |
+| `registry` | `string` | — | Docker registry host (**required**) |
+| `imageName` | `string` | project name | Image name in the Deployment |
+| `port` | `number` | `3000` | Container port |
+| `replicas` | `number` | `1` | Initial replica count |
+| `withIngress` | `boolean` | `true` | Generate `ingress.yaml` |
+| `ingressHost` | `string` | `{project}.elden-core.fr` | Ingress hostname |
+| `withTls` | `boolean` | `false` | Add cert-manager TLS annotations |
 
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+**Generated files**
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```
+{projectRoot}/
+  src/kube/
+    deployment.yaml
+    service.yaml
+    ingress.yaml    ← omitted when withIngress=false
+```
 
-### Set up CI (non-Github Actions CI)
+---
 
-**Note:** This is only required if your CI provider is not GitHub Actions.
+## Development
 
-Use the following command to configure a CI workflow for your workspace:
+### Prerequisites
+
+- Node.js 24+
+- npm 11+
+
+### Setup
 
 ```sh
-npx nx g ci-workflow
+npm install
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Available targets
 
-## Install Nx Console
+```sh
+# Type-check
+npx nx typecheck nx-utils
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+# Build (output: dist/packages/nx-utils/)
+npx nx build nx-utils
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+# Test with coverage
+npx nx test nx-utils
 
-## Useful links
+# Publish to npm.elden-core.fr
+npx nx publish nx-utils
+```
 
-Learn more:
+### Adding a new executor or generator
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+1. Create `src/executors/{name}/executor.ts` + `schema.json` + `schema.d.ts`
+2. Register it in `executors.json` (or `generators.json` for generators)
+3. Export it from `src/index.ts`
+4. Add tests in `src/executors/{name}/executor.spec.ts`
 
-And join the Nx community:
+---
 
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## CI/CD
+
+The GitHub Actions pipeline at `.github/workflows/ci.yml` runs on every push and pull request:
+
+| Job | Trigger | Steps |
+|---|---|---|
+| `ci` | push + PR | format-check → lint → typecheck → build → test |
+| `publish` | push to `main` only | build → `npm publish dist/packages/nx-utils` |
+
+Publishing requires a `NPM_TOKEN` secret configured in the repository settings.

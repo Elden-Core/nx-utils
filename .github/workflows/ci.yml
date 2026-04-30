@@ -2,39 +2,74 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  actions: read
   contents: read
 
 jobs:
-  main:
+  # ── Validate ────────────────────────────────────────────────────────────────
+  ci:
+    name: Install / Lint / Build / Test
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
-          filter: tree:0
           fetch-depth: 0
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
-
-      # Cache node_modules
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 24
+          cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      # Prepend any command with "nx record --" to record its logs to Nx Cloud
-      - run: npx nx record -- npx nx format:check  --base="remotes/origin/main"
-      - run: npx nx run-many -t lint test build typecheck e2e-ci
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
-      - run: npx nx fix-ci
-        if: always()
+      - name: Format check
+        run: npx nx format:check
+
+      - name: Lint
+        run: npx nx run-many -t lint --all
+
+      - name: Typecheck
+        run: npx nx run-many -t typecheck --all
+
+      - name: Build
+        run: npx nx run-many -t build --all
+
+      - name: Test
+        run: npx nx run-many -t test --all
+
+  # ── Publish (main branch only) ──────────────────────────────────────────────
+  publish:
+    name: Publish to npm.elden-core.fr
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          # Configures an .npmrc pointing to the registry and wires NODE_AUTH_TOKEN
+          registry-url: https://npm.elden-core.fr
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build publishable packages
+        run: npx nx run-many -t build --all
+
+      - name: Publish @elden-core/nx-utils
+        run: npm publish dist/packages/nx-utils --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,14 @@
+{
+  "generators": {
+    "setup-docker": {
+      "factory": "./src/generators/setup-docker/generator",
+      "schema": "./src/generators/setup-docker/schema.json",
+      "description": "Scaffold src/docker/Dockerfile and wire docker-build target for an NX project"
+    },
+    "setup-kube": {
+      "factory": "./src/generators/setup-kube/generator",
+      "schema": "./src/generators/setup-kube/schema.json",
+      "description": "Scaffold src/kube/ Kubernetes manifests (Deployment, Service, Ingress) for an NX project"
+    }
+  }
+}
